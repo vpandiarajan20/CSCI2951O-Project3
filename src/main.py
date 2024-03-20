@@ -20,8 +20,8 @@ def main(args):
   
     printSol = {
         "Instance" : filename,
-        "Time" : timer.getElapsed(),
-        "Result" : round(math.ceil(sol), 2), 
+        "Time" : round(timer.getElapsed(), 2),
+        "Result" : math.ceil(sol), 
         "Solution" : "OPT"
     }
 
