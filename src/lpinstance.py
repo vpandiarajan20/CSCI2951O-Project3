@@ -96,19 +96,22 @@ class LPSolver:
         num_vehicles = self.model.continuous_var_list(facilities, 0, self.lpinst.numMaxVehiclePerFacility, name="num_vehicles")
         customer_allocation = self.model.continuous_var_matrix(customers, facilities, 0, 1, name="customer_allocation")
 
+
         # Constraints
         for f in facilities:
-            # ensure customer demand does not exceed capacity of facility
-            self.model.add_constraint(self.model.sum(customer_allocation[c, f] * self.lpinst.demandC[c] for c in customers) <= self.lpinst.capacityF[f])
+            # ensure customer demand does not exceed capacity of facility * how open the facility is
+            self.model.add_constraint(self.model.sum(customer_allocation[c, f] * self.lpinst.demandC[c] for c in customers) <= self.lpinst.capacityF[f] * facility_open[f])
             # ensure driving distance required by any facility does not exceed max driving distance possible
             self.model.add_constraint(self.model.sum(self.lpinst.distanceCF[c][f] * customer_allocation[c, f] for c in customers) <= self.lpinst.truckDistLimit * num_vehicles[f])
-            # ensure number of vehicles used at facility is proportional to how open the facility is
-            self.model.add_constraint(facility_open[f] == num_vehicles[f] / self.lpinst.numMaxVehiclePerFacility)
+            # ensure number of vehicles used at facility is proportionally less than how open the facility is
+            self.model.add_constraint(facility_open[f] >= num_vehicles[f] / self.lpinst.numMaxVehiclePerFacility)
 
 
         for c in customers:
             # ensure each customers demand is perfectly met
-            self.model.add_constraint(self.model.sum(customer_allocation[c, f] * self.lpinst.demandC[c] for f in facilities) == self.lpinst.demandC[c])
+            # self.model.add_constraint(self.model.sum(customer_allocation[c, f] * self.lpinst.demandC[c] for f in facilities) == self.lpinst.demandC[c])
+            # ensure each customer is only serviced by one location
+            self.model.add_constraint(self.model.sum(customer_allocation[c, f] for f in facilities) == 1)
 
         self.model.minimize(
             # opening cost for each facility
@@ -120,7 +123,17 @@ class LPSolver:
         )
 
         self.model.solve()
-
+      #   print("maxVehicles:", self.lpinst.numMaxVehiclePerFacility)
+      #   print("maxDistance:", self.lpinst.truckDistLimit)
+      #   print("distances", self.lpinst.distanceCF)
+      #   results = {
+      #       "facility_open": [facility_open[f].solution_value for f in facilities],
+      #       "num_vehicles": [num_vehicles[f].solution_value for f in facilities],
+      #       "customer_allocation": [[customer_allocation[c, f].solution_value for f in facilities] for c in customers],
+      #       "total_cost": self.model.objective_value
+      #   }
+      #   print(results)
+        
         return self.model.objective_value
   
 
